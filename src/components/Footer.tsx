@@ -79,7 +79,7 @@ const Footer: React.FC = () => {
           <p className="flex items-center justify-center gap-1">
             Made with <Heart className="w-3 h-3 text-red-500" /> by Bishnu |
             <a
-              href="https://github.com/bishnuf66/blog_manager_frontend"
+              href="https://github.com/bishnuf66/nextjs-blog"
               className="text-blue-500 hover:text-blue-700 inline-flex items-center gap-1 ml-1"
             >
               View Source <ExternalLink className="w-3 h-3" />

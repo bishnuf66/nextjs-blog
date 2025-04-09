@@ -9,7 +9,7 @@ interface Blog {
   title: string;
   description: string;
   imageUrl: string; // Base64 string for image
-  email: string;
+  date: string;
 }
 
 const BlogList: React.FC = () => {
@@ -83,7 +83,7 @@ const BlogList: React.FC = () => {
                 <p className="text-sm text-gray-600 mt-2">{blog.description}</p>
                 <div className="flex mt-4 text-xs text-gray-500">
                   <span className="px-2 py-1 rounded-full text-xs">
-                    {blog.email}
+                    {blog.date}
                   </span>
                 </div>
                 {/* Displaying image */}

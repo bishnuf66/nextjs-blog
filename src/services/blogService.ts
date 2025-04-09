@@ -1,17 +1,18 @@
 // blogService.ts
 
+// Updated BlogCreatePayload without id and date
 interface BlogCreatePayload {
   title: string;
   description: string;
-  imageUrl: string;
-  email: string;
+  imageUrl: string; // base64 image string
 }
 
 interface BlogUpdatePayload {
+  id: number;
   title?: string;
   description?: string;
   imageUrl?: string;
-  email?: string;
+  date?: string;
 }
 
 // Fetch all blogs from localStorage
@@ -29,18 +30,17 @@ export const fetchBlogs = () => {
 export const createBlog = ({
   title,
   description,
-  imageUrl,  // This will be the base64 image string
-  email,
+  imageUrl,
 }: BlogCreatePayload) => {
   try {
     const blogs = JSON.parse(localStorage.getItem("blogs") || "[]");
 
     const newBlog = {
-      id: Date.now(), // Unique ID based on timestamp
+      id: Date.now(), // Unique ID
       title,
       description,
-      imageUrl, // This is the base64 string
-      email,
+      imageUrl,
+      date: new Date().toISOString(), // ISO date string
     };
 
     blogs.push(newBlog);

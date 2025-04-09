@@ -1,9 +1,9 @@
 "use client";
-import React, { useEffect, useState, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { getCookie, deleteCookie } from "../utils/cookieutil";
 import { useRouter } from "next/navigation";
-import { jwtDecode } from "jwt-decode";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 import {
   ChevronDown,
   LogOut,
@@ -14,35 +14,17 @@ import {
   LayoutDashboard,
 } from "lucide-react";
 
-interface DecodedToken {
-  userName: string;
-  email: string;
-}
-
 const Header: React.FC = () => {
   const pathname = usePathname();
   if (pathname === "/login") return null;
   const router = useRouter();
-  const token = getCookie("token");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
-  const [userName, setUserName] = useState("User");
-  const [email, setEmail] = useState("Email");
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const notificationRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    if (token) {
-      try {
-        const decoded: DecodedToken = jwtDecode(token);
-        setUserName(decoded?.userName || "User");
-        setEmail(decoded?.email || "user@email.com");
-      } catch (err) {
-        console.error("Invalid token", err);
-      }
-    }
-  }, [token]);
-
+  const userName = getCookie("userName") || "User";
+  const email = getCookie("email") || "user@email.com";
   const firstLetter = userName.charAt(0).toUpperCase();
 
   const handleLogout = () => {
@@ -60,7 +42,7 @@ const Header: React.FC = () => {
             <ListTodo className="w-6 h-6" />
           </div>
           <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            BlogMaster
+            <Link href="/blogs"> BlogMaster</Link>
           </h1>
         </div>
 

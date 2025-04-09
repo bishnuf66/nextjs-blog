@@ -1,191 +1,236 @@
-import React, { useState } from "react";
-import { createBlog } from "../services/blogService";
+import React, { useEffect, useState, useCallback } from "react";
+import { createBlog, updateBlog } from "../services/blogService"; // Added updateBlog
 import { X, FileText } from "lucide-react";
 import toast from "react-hot-toast";
-import { AnimatePresence, motion } from "framer-motion";
+
+interface BlogData {
+  id?: string; // Changed to number to match service
+  title: string;
+  description: string;
+  imageUrl: string;
+}
 
 interface AddBlogProps {
   isOpen: boolean;
   onClose: () => void;
   onBlogAdded?: () => void;
+  initialData?: BlogData | null;
 }
 
-const AddBlog: React.FC<AddBlogProps> = ({ isOpen, onClose, onBlogAdded }) => {
-  const [title, setTitle] = useState<string>("");
-  const [description, setDescription] = useState<string>("");
-  const [imageFile, setImageFile] = useState<File | null>(null); // For image file
-  const [email, setEmail] = useState<string>("");
+const AddBlog: React.FC<AddBlogProps> = ({
+  isOpen,
+  onClose,
+  onBlogAdded,
+  initialData = null,
+}) => {
+  const [formData, setFormData] = useState<Omit<BlogData, "id">>({
+    title: "",
+    description: "",
+    imageUrl: "",
+  });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  // Reset form when modal opens/closes or initialData changes
+  const resetForm = useCallback(() => {
+    setFormData({
+      title: initialData?.title || "",
+      description: initialData?.description || "",
+      imageUrl: initialData?.imageUrl || "",
+    });
+    setImageFile(null);
+    setImagePreview(initialData?.imageUrl || null);
+  }, [initialData]);
+
+  useEffect(() => {
+    if (isOpen) {
+      resetForm();
+    }
+  }, [isOpen, resetForm]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
+  };
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!title.trim()) {
+    if (!formData.title.trim()) {
       toast.error("Blog title is required");
-      return;
-    }
-
-    if (!imageFile) {
-      toast.error("Blog image is required");
       return;
     }
 
     setIsSubmitting(true);
 
-    // Convert the image file to base64
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      const imageUrl = reader.result as string; // Base64 string
-      const createPayload = {
-        title,
-        description,
-        imageUrl, // Store the base64 string as image URL
-        email,
-      };
-      
-      try {
-        const newBlog = await createBlog(createPayload);
-        toast.success("Blog created successfully!");
-        resetForm();
-        if (onBlogAdded) onBlogAdded();
-        onClose();
-      } catch (error: any) {
-        toast.error(error.message || "An error occurred");
-      } finally {
-        setIsSubmitting(false);
+    try {
+      // Get the final image URL (either new upload or existing)
+      let finalImageUrl = formData.imageUrl;
+      if (imageFile) {
+        finalImageUrl = await convertImageToBase64(imageFile);
       }
-    };
-    reader.readAsDataURL(imageFile); // Converts the file to a base64 string
+
+      if (!finalImageUrl) {
+        toast.error("Blog image is required");
+        return;
+      }
+
+      const payload = {
+        ...formData,
+        imageUrl: finalImageUrl,
+      };
+
+      if (initialData?.id) {
+        // Update existing blog
+        await updateBlog(initialData.id, payload);
+        toast.success("Blog updated successfully!");
+      } else {
+        // Create new blog
+        await createBlog(payload);
+        toast.success("Blog created successfully!");
+      }
+
+      resetForm();
+      onBlogAdded?.();
+      onClose();
+    } catch (error: any) {
+      toast.error(error.message || "An error occurred");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const resetForm = () => {
-    setTitle("");
-    setDescription("");
-    setImageFile(null);
-    setEmail("");
+  const convertImageToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   };
+
+  if (!isOpen) return null;
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          key="modal"
-          className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/30 px-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-        >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="bg-white w-full max-w-7xl rounded-xl shadow-xl overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm px-4">
+      <div
+        className="bg-white w-full max-w-2xl rounded-xl shadow-xl overflow-hidden animate-fadeIn"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="relative bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white">
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 text-white/80 hover:text-white focus:outline-none"
+            disabled={isSubmitting}
           >
-            {/* Header with colored strip */}
-            <div className="relative bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white">
-              <button
-                onClick={onClose}
-                className="absolute top-4 right-4 text-white/80 hover:text-white focus:outline-none"
-              >
-                <X className="w-5 h-5" />
-              </button>
+            <X className="w-5 h-5" />
+          </button>
+          <h2 className="text-2xl font-semibold flex items-center gap-2">
+            <FileText className="w-5 h-5" />
+            {initialData ? "Edit Blog" : "Create a New Blog"}
+          </h2>
+        </div>
 
-              <h2 className="text-2xl font-semibold flex items-center gap-2">
-                <FileText className="w-5 h-5" /> Create a New Blog
-              </h2>
-              <p className="text-white/80 mt-1 text-sm">
-                Add a blog with all the details you need to track
-              </p>
-            </div>
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Title */}
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-gray-700">
+              Blog Title <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              name="title"
+              value={formData.title}
+              onChange={handleInputChange}
+              placeholder="Enter blog title"
+              className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              required
+              disabled={isSubmitting}
+            />
+          </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              {/* Title Field */}
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">
-                  Blog Title <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Enter blog title"
-                  className="block w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                  required
+          {/* Description */}
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-gray-700">
+              Description
+            </label>
+            <textarea
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+              placeholder="Add more details about this blog..."
+              className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              rows={4}
+              disabled={isSubmitting}
+            />
+          </div>
+
+          {/* Image Upload */}
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-gray-700">
+              {initialData ? "Update Image" : "Image Upload"}{" "}
+              <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              className="block w-full text-sm text-gray-500
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-md file:border-0
+                file:text-sm file:font-semibold
+                file:bg-blue-50 file:text-blue-700
+                hover:file:bg-blue-100"
+              disabled={isSubmitting}
+            />
+            {imagePreview && (
+              <div className="mt-3">
+                <p className="text-xs text-gray-500 mb-1">Image Preview:</p>
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="h-40 object-contain rounded-lg border"
                 />
               </div>
+            )}
+          </div>
 
-              {/* Description Field */}
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">
-                  Description
-                </label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Add more details about this blog..."
-                  className="block w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                  rows={3}
-                />
-              </div>
-
-              {/* Image File Upload */}
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">
-                  Image Upload
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="block w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                />
-              </div>
-
-              {/* Email Field */}
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter email address"
-                  className="block w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                />
-              </div>
-
-              {/* Form Actions */}
-              <div className="flex justify-end gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100 border border-gray-300 transition-colors duration-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-gray-500"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors duration-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center gap-2"
-                >
-                  {isSubmitting ? (
-                    <svg
-                      className="animate-spin h-4 w-4 text-white"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
+          {/* Form Actions */}
+          <div className="flex justify-end gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100 border border-gray-300 text-sm font-medium"
+              disabled={isSubmitting}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium flex items-center gap-2 disabled:opacity-70"
+            >
+              {isSubmitting ? (
+                <>
+                  <span className="animate-spin inline-block">
+                    <svg className="h-4 w-4" viewBox="0 0 24 24">
                       <circle
                         className="opacity-25"
                         cx="12"
@@ -193,23 +238,26 @@ const AddBlog: React.FC<AddBlogProps> = ({ isOpen, onClose, onBlogAdded }) => {
                         r="10"
                         stroke="currentColor"
                         strokeWidth="4"
-                      ></circle>
+                      />
                       <path
                         className="opacity-75"
                         fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
+                        d="M4 12a8 8 0 018-8V0C5.37 0 0 5.37 0 12h4z"
+                      />
                     </svg>
-                  ) : (
-                    "Create Blog"
-                  )}
-                </button>
-              </div>
-            </form>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+                  </span>
+                  Processing...
+                </>
+              ) : initialData ? (
+                "Update Blog"
+              ) : (
+                "Create Blog"
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 };
 
