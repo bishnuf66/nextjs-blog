@@ -4,10 +4,11 @@ import { X, FileText } from "lucide-react";
 import toast from "react-hot-toast";
 
 interface BlogData {
-  id?: string; // Changed to number to match service
+  id?: number; // Changed from string to number to match service
   title: string;
   description: string;
   imageUrl: string;
+  date?: string;
 }
 
 interface AddBlogProps {
@@ -27,6 +28,7 @@ const AddBlog: React.FC<AddBlogProps> = ({
     title: "",
     description: "",
     imageUrl: "",
+    date: "",
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -38,6 +40,7 @@ const AddBlog: React.FC<AddBlogProps> = ({
       title: initialData?.title || "",
       description: initialData?.description || "",
       imageUrl: initialData?.imageUrl || "",
+      date: initialData?.date || "",
     });
     setImageFile(null);
     setImagePreview(initialData?.imageUrl || null);
@@ -99,14 +102,13 @@ const AddBlog: React.FC<AddBlogProps> = ({
         // Update existing blog
         await updateBlog(initialData.id, payload);
         toast.success("Blog updated successfully!");
+        onBlogAdded?.();
       } else {
         // Create new blog
         await createBlog(payload);
         toast.success("Blog created successfully!");
+        onBlogAdded?.();
       }
-
-      resetForm();
-      onBlogAdded?.();
       onClose();
     } catch (error: any) {
       toast.error(error.message || "An error occurred");
@@ -160,7 +162,7 @@ const AddBlog: React.FC<AddBlogProps> = ({
               value={formData.title}
               onChange={handleInputChange}
               placeholder="Enter blog title"
-              className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="block w-full px-3 text-gray-600 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               required
               disabled={isSubmitting}
             />
@@ -176,8 +178,23 @@ const AddBlog: React.FC<AddBlogProps> = ({
               value={formData.description}
               onChange={handleInputChange}
               placeholder="Add more details about this blog..."
-              className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="block w-full text-gray-600 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               rows={4}
+              disabled={isSubmitting}
+            />
+          </div>
+
+          {/* Date */}
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-gray-700">
+              Date
+            </label>
+            <input
+              type="date"
+              name="date"
+              value={formData.date}
+              onChange={handleInputChange}
+              className="block w-full px-3 py-2 text-gray-600 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               disabled={isSubmitting}
             />
           </div>
